@@ -1,48 +1,56 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const path = require("path");
+
 const db = require("./db");
+const categoryRoutes = require("./routes/productCategories");
+const productRoutes = require("./routes/productRoutes");
+const settingsRoutes = require("./routes/settingsRoutes");
+const serviceRoutes = require("./routes/serviceRoutes"); 
+const programRoutes = require("./routes/programRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: "10mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
 
-// Import routes
-// const contactRoutes = require("./routes/contactRoutes");
-// const distributorRoutes = require("./routes/distributorRoutes");
-// const superStockistRoutes = require("./routes/superstockistRoutes");
-// const dealerRoutes = require("./routes/delarRoutes");
+// Serve static files (uploaded images) — this is what makes
+// /uploads/logos/logo-xxx.png publicly reachable in the browser
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Use routes
-// app.use("/api/contact", contactRoutes);
-// app.use("/api/distributor", distributorRoutes);
-// app.use("/api/super-stockist", superStockistRoutes);
-// app.use("/api/dealer", dealerRoutes);
+// Routes
+app.use("/api", categoryRoutes);
+app.use("/api", productRoutes);
+app.use("/api", settingsRoutes);
+app.use("/api", serviceRoutes);
+app.use("/api", programRoutes); 
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Server is running" });
 });
 
-// Error handling middleware
+// 404 handler for unmatched API routes (helps distinguish
+// "wrong URL" from "server error" while debugging)
+app.use("/api", (req, res) => {
+  res.status(404).json({ success: false, message: "API route not found" });
+});
+
+// Error handling middleware (must be last)
 app.use((err, req, res, next) => {
   console.error("Error:", err);
   res.status(500).json({
     success: false,
     message: "Internal server error",
-    error: err.message
+    error: err.message,
   });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-//   console.log(`📝 Contact API: http://localhost:${PORT}/api/contact`);
-//   console.log(`📝 Distributor API: http://localhost:${PORT}/api/distributor`);
-//   console.log(`📝 Super Stockist API: http://localhost:${PORT}/api/super-stockist`);
-//   console.log(`📝 Dealer API: http://localhost:${PORT}/api/dealer`);
 });
