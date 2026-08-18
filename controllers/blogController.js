@@ -1,4 +1,12 @@
 const db = require("../db");
+const path = require("path");
+const fs = require("fs");
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, "../uploads/blogs");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 // GET /api/blogs
 exports.getAllBlogs = async (req, res) => {
@@ -25,10 +33,12 @@ exports.getBlogById = async (req, res) => {
   }
 };
 
-// POST /api/blogs
+// POST /api/blogs - Modified to handle file upload
 exports.createBlog = async (req, res) => {
   try {
-    const { title, slug, content, image, category, status } = req.body;
+    const { title, slug, content, category, status } = req.body;
+    // Get image path from uploaded file
+    const image = req.file ? `/uploads/blogs/${req.file.filename}` : "";
 
     if (!title || !slug || !category) {
       return res.status(400).json({ success: false, message: "Title, slug and category are required" });
@@ -47,7 +57,7 @@ exports.createBlog = async (req, res) => {
         title.trim(),
         slug.trim().toLowerCase().replace(/\s+/g, "-"),
         content || "",
-        (image || "").trim(),
+        image,
         category,
         status || "Draft",
         createdDate,
@@ -65,11 +75,30 @@ exports.createBlog = async (req, res) => {
   }
 };
 
-// PUT /api/blogs/:id
+// PUT /api/blogs/:id - Modified to handle file upload
 exports.updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, slug, content, image, category, status } = req.body;
+    const { title, slug, content, category, status } = req.body;
+    
+    // Get existing blog to check current image
+    const [existingRows] = await db.query("SELECT image FROM blogs WHERE id = ?", [id]);
+    if (existingRows.length === 0) {
+      return res.status(404).json({ success: false, message: "Blog not found" });
+    }
+
+    // Use new image if uploaded, otherwise keep existing
+    let image = existingRows[0].image;
+    if (req.file) {
+      // Delete old image if it exists
+      if (image) {
+        const oldImagePath = path.join(__dirname, "..", image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      image = `/uploads/blogs/${req.file.filename}`;
+    }
 
     await db.query(
       `UPDATE blogs SET title = ?, slug = ?, content = ?, image = ?, category = ?, status = ?
@@ -78,7 +107,7 @@ exports.updateBlog = async (req, res) => {
         title.trim(),
         slug.trim().toLowerCase().replace(/\s+/g, "-"),
         content || "",
-        (image || "").trim(),
+        image,
         category,
         status,
         id,
@@ -119,13 +148,25 @@ exports.toggleStatus = async (req, res) => {
   }
 };
 
-// DELETE /api/blogs/:id
+// DELETE /api/blogs/:id - Modified to delete image
 exports.deleteBlog = async (req, res) => {
   try {
+    // Get blog to delete image
+    const [rows] = await db.query("SELECT image FROM blogs WHERE id = ?", [req.params.id]);
+    
     const [result] = await db.query("DELETE FROM blogs WHERE id = ?", [req.params.id]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: "Blog not found" });
     }
+
+    // Delete associated image file
+    if (rows.length > 0 && rows[0].image) {
+      const imagePath = path.join(__dirname, "..", rows[0].image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+
     res.json({ success: true, message: "Blog deleted" });
   } catch (err) {
     console.error("deleteBlog error:", err);

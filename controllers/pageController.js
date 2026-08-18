@@ -11,6 +11,24 @@ exports.getAllPages = async (req, res) => {
   }
 };
 
+
+// GET /api/pages/:id - NEW FUNCTION
+exports.getPageById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [rows] = await db.query("SELECT * FROM pages WHERE id = ?", [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Page not found" });
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (err) {
+    console.error("getPageById error:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch page" });
+  }
+};
+
 // POST /api/pages
 exports.createPage = async (req, res) => {
   try {
