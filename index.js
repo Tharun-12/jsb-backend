@@ -9,6 +9,13 @@ const productRoutes = require("./routes/productRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const serviceRoutes = require("./routes/serviceRoutes"); 
 const programRoutes = require("./routes/programRoutes");
+const globalSearchRoutes = require("./routes/globalSearchRoutes");
+const packageCategoryRoutes = require("./routes/packageCategoryRoutes");
+const packageRoutes = require("./routes/packageRoutes");
+const pageRoutes = require("./routes/pageRoutes"); 
+const sectionRoutes = require("./routes/sectionRoutes");
+const blogRoutes = require("./routes/blogRoutes");
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,6 +35,13 @@ app.use("/api", productRoutes);
 app.use("/api", settingsRoutes);
 app.use("/api", serviceRoutes);
 app.use("/api", programRoutes); 
+
+app.use("/api/admin", globalSearchRoutes);
+app.use("/api/package-categories", packageCategoryRoutes);
+app.use("/api/packages", packageRoutes);
+app.use("/api/pages", pageRoutes);
+app.use("/api/sections", sectionRoutes); 
+app.use("/api/blogs", blogRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
