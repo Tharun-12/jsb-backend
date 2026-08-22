@@ -15,6 +15,7 @@ const packageRoutes = require("./routes/packageRoutes");
 const pageRoutes = require("./routes/pageRoutes"); 
 const sectionRoutes = require("./routes/sectionRoutes");
 const blogRoutes = require("./routes/blogRoutes");
+const enquiryRoute = require("./routes/EnquiryRoute")
 
 
 const app = express();
@@ -42,6 +43,9 @@ app.use("/api/packages", packageRoutes);
 app.use("/api/pages", pageRoutes);
 app.use("/api/sections", sectionRoutes); 
 app.use("/api/blogs", blogRoutes);
+
+app.use("/api", enquiryRoute);
+
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
