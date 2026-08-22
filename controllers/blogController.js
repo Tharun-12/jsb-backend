@@ -33,10 +33,10 @@ exports.getBlogById = async (req, res) => {
   }
 };
 
-// POST /api/blogs - Modified to handle file upload
+// POST /api/blogs - Modified to handle file upload and new fields
 exports.createBlog = async (req, res) => {
   try {
-    const { title, slug, content, category, status } = req.body;
+    const { title, slug, content, category, status, author, tag_line, read_time } = req.body;
     // Get image path from uploaded file
     const image = req.file ? `/uploads/blogs/${req.file.filename}` : "";
 
@@ -51,8 +51,8 @@ exports.createBlog = async (req, res) => {
     });
 
     const [result] = await db.query(
-      `INSERT INTO blogs (title, slug, content, image, category, status, created_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO blogs (title, slug, content, image, category, status, created_date, author, tag_line, read_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title.trim(),
         slug.trim().toLowerCase().replace(/\s+/g, "-"),
@@ -61,6 +61,9 @@ exports.createBlog = async (req, res) => {
         category,
         status || "Draft",
         createdDate,
+        author || "",
+        tag_line || "",
+        read_time || "",
       ]
     );
 
@@ -75,11 +78,11 @@ exports.createBlog = async (req, res) => {
   }
 };
 
-// PUT /api/blogs/:id - Modified to handle file upload
+// PUT /api/blogs/:id - Modified to handle file upload and new fields
 exports.updateBlog = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, slug, content, category, status } = req.body;
+    const { title, slug, content, category, status, author, tag_line, read_time } = req.body;
     
     // Get existing blog to check current image
     const [existingRows] = await db.query("SELECT image FROM blogs WHERE id = ?", [id]);
@@ -101,7 +104,16 @@ exports.updateBlog = async (req, res) => {
     }
 
     await db.query(
-      `UPDATE blogs SET title = ?, slug = ?, content = ?, image = ?, category = ?, status = ?
+      `UPDATE blogs SET 
+        title = ?, 
+        slug = ?, 
+        content = ?, 
+        image = ?, 
+        category = ?, 
+        status = ?,
+        author = ?,
+        tag_line = ?,
+        read_time = ?
        WHERE id = ?`,
       [
         title.trim(),
@@ -110,6 +122,9 @@ exports.updateBlog = async (req, res) => {
         image,
         category,
         status,
+        author || "",
+        tag_line || "",
+        read_time || "",
         id,
       ]
     );
@@ -184,5 +199,8 @@ function mapBlog(row) {
     category: row.category,
     status: row.status,
     createdDate: row.created_date,
+    author: row.author || "",
+    tag_line: row.tag_line || "",
+    read_time: row.read_time || "",
   };
 }
