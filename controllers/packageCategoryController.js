@@ -1,12 +1,12 @@
 const db = require("../db");
 
 /* =====================================================
-   GET ALL CATEGORIES
+   GET ALL CATEGORIES (UPDATED - removed package_count)
 ====================================================== */
 const getAllCategories = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name, package_count AS packageCount
+      `SELECT id, name
        FROM package_categories
        ORDER BY id ASC`
     );
@@ -18,13 +18,13 @@ const getAllCategories = async (req, res) => {
 };
 
 /* =====================================================
-   GET SINGLE CATEGORY
+   GET SINGLE CATEGORY (UPDATED - removed package_count)
 ====================================================== */
 const getCategoryById = async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await db.query(
-      `SELECT id, name, package_count AS packageCount
+      `SELECT id, name
        FROM package_categories WHERE id = ?`,
       [id]
     );
@@ -41,24 +41,15 @@ const getCategoryById = async (req, res) => {
 };
 
 /* =====================================================
-   CREATE CATEGORY (UPDATED)
+   CREATE CATEGORY (UPDATED - removed package_count)
 ====================================================== */
 const createCategory = async (req, res) => {
   try {
-    const { name, packageCount } = req.body;
+    const { name } = req.body;
 
     // Validate name
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: "Category name is required" });
-    }
-
-    // Validate packageCount (optional, default to 0 if not provided)
-    const count = packageCount !== undefined && !isNaN(packageCount) 
-      ? parseInt(packageCount) 
-      : 0;
-
-    if (count < 0) {
-      return res.status(400).json({ success: false, message: "Package count cannot be negative" });
     }
 
     // Check if category already exists
@@ -71,18 +62,17 @@ const createCategory = async (req, res) => {
       return res.status(409).json({ success: false, message: "Category already exists" });
     }
 
-    // Insert with package count
+    // Insert without package count
     const [result] = await db.query(
-      `INSERT INTO package_categories (name, package_count) VALUES (?, ?)`,
-      [name.trim(), count]
+      `INSERT INTO package_categories (name) VALUES (?)`,
+      [name.trim()]
     );
 
     res.status(201).json({
       success: true,
       data: { 
         id: result.insertId, 
-        name: name.trim(), 
-        packageCount: count 
+        name: name.trim()
       },
     });
   } catch (err) {
@@ -92,12 +82,12 @@ const createCategory = async (req, res) => {
 };
 
 /* =====================================================
-   UPDATE CATEGORY (UPDATED)
+   UPDATE CATEGORY (UPDATED - removed package_count)
 ====================================================== */
 const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, packageCount } = req.body;
+    const { name } = req.body;
 
     // Check if category exists
     const [existing] = await db.query(
@@ -109,47 +99,29 @@ const updateCategory = async (req, res) => {
       return res.status(404).json({ success: false, message: "Category not found" });
     }
 
-    // Validate fields
-    let updateFields = [];
-    let updateValues = [];
-
-    if (name !== undefined && name.trim()) {
-      // Check for duplicate name
-      const [duplicate] = await db.query(
-        `SELECT id FROM package_categories WHERE name = ? AND id != ?`,
-        [name.trim(), id]
-      );
-
-      if (duplicate.length > 0) {
-        return res.status(409).json({ success: false, message: "Another category already uses this name" });
-      }
-      
-      updateFields.push("name = ?");
-      updateValues.push(name.trim());
+    // Validate name
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: "Category name is required" });
     }
 
-    if (packageCount !== undefined && !isNaN(packageCount)) {
-      const count = parseInt(packageCount);
-      if (count < 0) {
-        return res.status(400).json({ success: false, message: "Package count cannot be negative" });
-      }
-      updateFields.push("package_count = ?");
-      updateValues.push(count);
+    // Check for duplicate name
+    const [duplicate] = await db.query(
+      `SELECT id FROM package_categories WHERE name = ? AND id != ?`,
+      [name.trim(), id]
+    );
+
+    if (duplicate.length > 0) {
+      return res.status(409).json({ success: false, message: "Another category already uses this name" });
     }
 
-    if (updateFields.length === 0) {
-      return res.status(400).json({ success: false, message: "No valid fields to update" });
-    }
-
-    // Add id to values
-    updateValues.push(id);
-
-    const query = `UPDATE package_categories SET ${updateFields.join(", ")} WHERE id = ?`;
-    await db.query(query, updateValues);
+    await db.query(
+      `UPDATE package_categories SET name = ? WHERE id = ?`,
+      [name.trim(), id]
+    );
 
     // Get updated data
     const [updated] = await db.query(
-      `SELECT id, name, package_count AS packageCount 
+      `SELECT id, name
        FROM package_categories WHERE id = ?`,
       [id]
     );
@@ -162,26 +134,19 @@ const updateCategory = async (req, res) => {
 };
 
 /* =====================================================
-   DELETE CATEGORY
+   DELETE CATEGORY (UPDATED - removed package_count check)
 ====================================================== */
 const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
     const [rows] = await db.query(
-      `SELECT id, package_count AS packageCount FROM package_categories WHERE id = ?`,
+      `SELECT id FROM package_categories WHERE id = ?`,
       [id]
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: "Category not found" });
-    }
-
-    if (rows[0].packageCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `This category contains ${rows[0].packageCount} packages. Please move or delete those packages before deleting the category.`,
-      });
     }
 
     await db.query(`DELETE FROM package_categories WHERE id = ?`, [id]);
