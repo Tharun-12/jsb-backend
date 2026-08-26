@@ -5,6 +5,7 @@ const db = mysql.createPool({
   user: "root",
   password: "",
   database: "jsb-database",
+  // database: "jsb",
   // port: 4306,
   port: 3306,
   
