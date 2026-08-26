@@ -47,6 +47,23 @@ const upload = multer({
 });
 
 // =====================================================
+// HELPER: Normalize "status" coming from multipart/form-data.
+// FormData always sends values as strings, so status will
+// arrive as "1" / "0" / "true" / "false" (string), not a
+// boolean or number. The previous code never checked for the
+// string "1", so it always fell through and saved status = 0.
+// =====================================================
+const parseStatus = (status) => {
+  if (status === undefined || status === null) return true; // default to active
+  return (
+    status === true ||
+    status === 1 ||
+    status === "1" ||
+    status === "true"
+  );
+};
+
+// =====================================================
 // GET ALL PRODUCTS
 // =====================================================
 router.get("/products", async (req, res) => {
@@ -78,9 +95,8 @@ router.get("/products", async (req, res) => {
       );
 
       const imageUrls = images.map(img => img.image_url);
-      
+
       // Set primary image if available, otherwise use the main image
-      const primaryImage = images.find(img => img.is_primary === 1);
       const mainImage = product.image || (imageUrls.length > 0 ? imageUrls[0] : "");
 
       products.push({
@@ -151,7 +167,6 @@ router.get("/products/:id", async (req, res) => {
     );
 
     const imageUrls = images.map(img => img.image_url);
-    const primaryImage = images.find(img => img.is_primary === 1);
     const mainImage = rows[0].image || (imageUrls.length > 0 ? imageUrls[0] : "");
 
     const product = {
@@ -188,7 +203,7 @@ router.get("/products/:id", async (req, res) => {
 router.post("/products", upload.array("images", 5), async (req, res) => {
   try {
     const { name, category_id, description, price, status } = req.body;
-    
+
     // Validate required fields
     if (!name || !name.trim()) {
       return res.status(400).json({
@@ -226,7 +241,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 
     const trimmedName = name.trim();
     const trimmedDescription = description ? description.trim() : "";
-    const productStatus = status !== undefined ? (status === true || status === "true" || status === 1) : 1;
+    const productStatus = parseStatus(status);
 
     // Handle image uploads
     const uploadedFiles = req.files || [];
@@ -261,7 +276,7 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
           url,
           index === 0 ? 1 : 0 // First image is primary
         ]);
-        
+
         await connection.query(
           "INSERT INTO product_images (product_id, image_url, is_primary) VALUES ?",
           [imageValues]
@@ -334,9 +349,6 @@ router.post("/products", upload.array("images", 5), async (req, res) => {
 // =====================================================
 // UPDATE PRODUCT (with multiple image upload)
 // =====================================================
-// =====================================================
-// UPDATE PRODUCT (with multiple image upload) - FIXED
-// =====================================================
 router.put("/products/:id", upload.array("images", 5), async (req, res) => {
   try {
     const { id } = req.params;
@@ -392,7 +404,7 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
 
     const trimmedName = name.trim();
     const trimmedDescription = description ? description.trim() : "";
-    const productStatus = status !== undefined ? (status === true || status === "true" || status === 1) : 1;
+    const productStatus = parseStatus(status);
 
     // Get connection for transaction
     const connection = await db.getConnection();
@@ -431,9 +443,9 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
 
       // Delete images that are marked for removal or not in existing list
       const currentImageUrls = currentImages.map(img => img.image_url);
-      
+
       // Images to delete = images marked for removal + images not in existing list
-      const imagesToDelete = currentImageUrls.filter(url => 
+      const imagesToDelete = currentImageUrls.filter(url =>
         imagesToRemoveList.includes(url) || !existingImageList.includes(url)
       );
 
@@ -451,7 +463,8 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
         }
       }
 
-      // Combine existing and new images
+      // Combine existing and new images (existingImageList already
+      // arrives ordered with the chosen main image first, from the frontend)
       const allImages = [...existingImageList, ...newImageUrls];
 
       // Insert new images
@@ -461,7 +474,7 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
           url,
           0 // Will update primary flag later
         ]);
-        
+
         await connection.query(
           "INSERT INTO product_images (product_id, image_url, is_primary) VALUES ?",
           [imageValues]
@@ -475,7 +488,7 @@ router.put("/products/:id", upload.array("images", 5), async (req, res) => {
           "UPDATE product_images SET is_primary = 0 WHERE product_id = ?",
           [id]
         );
-        
+
         // Set first image as primary
         await connection.query(
           "UPDATE product_images SET is_primary = 1 WHERE product_id = ? AND image_url = ?",
@@ -709,9 +722,11 @@ router.patch("/products/:id/status", async (req, res) => {
       });
     }
 
+    const newStatus = parseStatus(status);
+
     await db.query(
       "UPDATE products SET status = ? WHERE id = ?",
-      [status ? 1 : 0, id]
+      [newStatus ? 1 : 0, id]
     );
 
     res.json({
@@ -719,7 +734,7 @@ router.patch("/products/:id/status", async (req, res) => {
       message: "Product status updated successfully",
       data: {
         id: parseInt(id),
-        status: status === 1 || status === true
+        status: newStatus
       }
     });
   } catch (error) {
