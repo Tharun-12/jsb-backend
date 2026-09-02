@@ -1,3 +1,4 @@
+// nodemailer.js
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
@@ -11,7 +12,16 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const adminEmail = 'infabfoods@gmail.com';
+const adminEmail = 'manitejavadnala@gmail.com';
+
+// Verify transporter connection
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('Email transporter error:', error);
+  } else {
+    console.log('Email transporter ready to send messages');
+  }
+});
 
 module.exports = {
   transporter,
