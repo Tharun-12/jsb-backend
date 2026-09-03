@@ -596,4 +596,60 @@ router.get("/programs/stats", async (req, res) => {
   }
 });
 
+// GET API endpoint to combine services and programs
+router.get('/services-with-programs', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                s.id AS service_id,
+                s.service_for,
+                s.name AS service_name,
+                p.*
+            FROM services s
+            LEFT JOIN programs p ON s.id = p.service_id
+            ORDER BY s.id, p.id
+        `;
+        
+        const [results] = await db.query(query);
+        
+        // Transform data to group programs under each service
+        const combinedData = results.reduce((acc, row) => {
+            // Check if service already exists in accumulator
+            let service = acc.find(s => s.id === row.service_id);
+            
+            if (!service) {
+                // Create new service entry
+                service = {
+                    id: row.service_id,
+                    service_for: row.service_for,
+                    name: row.service_name,
+                    programs: []
+                };
+                acc.push(service);
+            }
+            
+            // Add program if it exists (not null)
+            if (row.id) { // program id exists
+                const { service_id, service_for, service_name, ...programData } = row;
+                service.programs.push(programData);
+            }
+            
+            return acc;
+        }, []);
+        
+        res.status(200).json({
+            success: true,
+            data: combinedData
+        });
+        
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching data from database',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
