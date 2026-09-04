@@ -345,7 +345,8 @@ router.post("/enquiries", async (req, res) => {
             company_name,
             product_id,
             quantity,
-            required_date
+            required_date,
+            program_id // Add this
         } = req.body;
 
         // Validation
@@ -372,9 +373,10 @@ router.post("/enquiries", async (req, res) => {
                 company_name,
                 product_id,
                 quantity,
-                required_date
+                required_date,
+                program_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const values = [
@@ -388,7 +390,8 @@ router.post("/enquiries", async (req, res) => {
             company_name || null,
             product_id || null,
             quantity || null,
-            required_date || null
+            required_date || null,
+            program_id || null
         ];
 
         const [result] = await db.query(sql, values);
@@ -405,7 +408,8 @@ router.post("/enquiries", async (req, res) => {
             company_name: company_name || null,
             product_id: product_id || null,
             quantity: quantity || null,
-            required_date: required_date || null
+            required_date: required_date || null,
+            program_id: program_id || null
         };
 
         res.status(201).json({
