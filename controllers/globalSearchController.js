@@ -22,7 +22,8 @@ const globalSearch = async (req, res) => {
           productCategories: [],
           products: [],
           packageCategories: [],
-          packages: []
+          packages: [],
+          orders: []
         }
       });
     }
@@ -309,6 +310,51 @@ const globalSearch = async (req, res) => {
     );
 
     // ==================================================
+    // 11. ORDERS
+    // ==================================================
+
+    const [orders] = await db.query(
+      `
+      SELECT
+        id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        company_name,
+        delivery_address,
+        total_amount,
+        total_items,
+        status,
+        created_at,
+        updated_at
+      FROM orders
+      WHERE
+        CAST(id AS CHAR) LIKE ?
+        OR customer_name LIKE ?
+        OR customer_email LIKE ?
+        OR customer_phone LIKE ?
+        OR company_name LIKE ?
+        OR delivery_address LIKE ?
+        OR CAST(total_amount AS CHAR) LIKE ?
+        OR CAST(total_items AS CHAR) LIKE ?
+        OR status LIKE ?
+      ORDER BY id DESC
+      LIMIT 5
+      `,
+      [
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm,
+        searchTerm
+      ]
+    );
+
+    // ==================================================
     // RESPONSE
     // ==================================================
 
@@ -326,7 +372,8 @@ const globalSearch = async (req, res) => {
         productCategories,
         products,
         packageCategories,
-        packages
+        packages,
+        orders
       }
     });
 
