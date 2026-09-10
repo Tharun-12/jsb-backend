@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -18,6 +19,9 @@ const blogRoutes = require("./routes/blogRoutes");
 const enquiryRoute = require("./routes/EnquiryRoute")
 const orderRoute = require("./routes/ordersRoutes")
 const AllCountsRoute = require("./routes/AllCountsRoute");
+const authRoutes = require("./routes/authRoutes");
+const authenticateToken = require("./middleware/authMiddleware");
+const adminMiddleware = require("./middleware/adminMiddleware");
 
 
 const app = express();
@@ -39,7 +43,8 @@ app.use("/api", settingsRoutes);
 app.use("/api", serviceRoutes);
 app.use("/api", programRoutes); 
 
-app.use("/api/admin", globalSearchRoutes);
+app.use("/api/admin", authRoutes);
+app.use("/api/admin", authenticateToken, adminMiddleware, globalSearchRoutes);
 app.use("/api/package-categories", packageCategoryRoutes);
 app.use("/api/packages", packageRoutes);
 app.use("/api/pages", pageRoutes);

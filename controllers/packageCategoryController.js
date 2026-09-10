@@ -6,7 +6,7 @@ const db = require("../db");
 const getAllCategories = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, name
+      `SELECT id, name, created_at, updated_at
        FROM package_categories
        ORDER BY id ASC`
     );
