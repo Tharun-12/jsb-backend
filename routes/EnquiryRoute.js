@@ -17,6 +17,29 @@ const transporter = nodemailer.createTransport({
 
 const adminEmail = 'manitejavadnala@gmail.com';
 
+// ============================================================
+// TEAM SIZE NORMALIZER
+// ============================================================
+// The public enquiry forms send team_size either as a plain number
+// ("26") or as a range picked from a dropdown ("11-25", "26-50",
+// "100+"). Previously only the /refreshment-bookings route parsed
+// this with parseInt (which conveniently reads only the leading
+// digits, e.g. parseInt("26-50", 10) === 26). The plain /enquiries
+// create + update routes stored whatever string was sent as-is,
+// which is why production data ended up with mixed formats
+// ("26-50" as a string) while locally-tested rows stayed as clean
+// integers. This helper makes all entry points consistent: always
+// store a single integer (the lower bound of any range).
+const parseTeamSize = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const match = String(value).match(/\d+/);
+
+  return match ? parseInt(match[0], 10) : null;
+};
+
 // Email template for admin notification (Refreshment Booking)
 const getAdminEmailHTML = (data) => {
   return `
@@ -251,6 +274,10 @@ router.post("/refreshment-bookings", async (req, res) => {
 
         const enquiryDate = new Date().toISOString().split("T")[0];
 
+        // Normalized once so both the DB insert and the email payload
+        // use the exact same value.
+        const normalizedTeamSize = parseTeamSize(team_size);
+
         const sql = `
             INSERT INTO enquiries
             (
@@ -274,11 +301,11 @@ router.post("/refreshment-bookings", async (req, res) => {
             email,
             mobile,
             type,
-            parseInt(team_size, 10) || null,
+            normalizedTeamSize,
             status,
             enquiryDate,
             company_name,
-            parseInt(team_size, 10) || null,
+            normalizedTeamSize,
             package_id,
             package_name || null
         ];
@@ -293,7 +320,7 @@ router.post("/refreshment-bookings", async (req, res) => {
             email,
             mobile,
             company_name,
-            team_size: parseInt(team_size, 10) || null,
+            team_size: normalizedTeamSize,
             package_id,
             package_name: package_name || null,
             required_date: required_date || null,
@@ -360,6 +387,14 @@ router.post("/enquiries", async (req, res) => {
         const enquiryStatus = status || "New";
         const enquiryDate = enquiry_date || new Date().toISOString().split("T")[0];
 
+        // FIX: this route previously stored team_size exactly as
+        // received. When the public form sent a range string like
+        // "26-50" (a dropdown value), that string was written
+        // straight into the DB, producing mixed number/range data
+        // between environments. Now normalized to a single integer,
+        // same as the refreshment-bookings route.
+        const normalizedTeamSize = parseTeamSize(team_size);
+
         const sql = `
             INSERT INTO enquiries
             (
@@ -384,7 +419,7 @@ router.post("/enquiries", async (req, res) => {
             email,
             mobile,
             type,
-            team_size || null,
+            normalizedTeamSize,
             enquiryStatus,
             enquiryDate,
             company_name || null,
@@ -402,7 +437,7 @@ router.post("/enquiries", async (req, res) => {
             email,
             mobile,
             type,
-            team_size: team_size || null,
+            team_size: normalizedTeamSize,
             status: enquiryStatus,
             enquiry_date: enquiryDate,
             company_name: company_name || null,
@@ -561,6 +596,10 @@ router.put("/enquiries/:id", async (req, res) => {
             });
         }
 
+        // FIX: same normalization applied here so edits made through
+        // the admin panel can't reintroduce a range string either.
+        const normalizedTeamSize = parseTeamSize(team_size);
+
         const sql = `
             UPDATE enquiries
             SET
@@ -579,7 +618,7 @@ router.put("/enquiries/:id", async (req, res) => {
             email,
             mobile,
             type,
-            team_size || null,
+            normalizedTeamSize,
             status || "New",
             enquiry_date,
             id
