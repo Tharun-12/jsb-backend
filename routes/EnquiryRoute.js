@@ -40,6 +40,23 @@ const parseTeamSize = (value) => {
   return match ? parseInt(match[0], 10) : null;
 };
 
+// ============================================================
+// MESSAGE NORMALIZER
+// ============================================================
+// Only Home Contact ("home-contact") and Contact ("contact")
+// forms carry a free-text message. Event bookings (school-event,
+// community-event, corporate-wellness, service-booking, etc.)
+// must NOT persist anything here even if the client sends it.
+const MESSAGE_TYPES = new Set(["home-contact", "contact"]);
+
+const normalizeMessage = (type, message) => {
+  if (!MESSAGE_TYPES.has(type)) return null;
+  if (message === null || message === undefined) return null;
+
+  const trimmed = String(message).trim();
+  return trimmed.length ? trimmed : null;
+};
+
 // Email template for admin notification (Refreshment Booking)
 const getAdminEmailHTML = (data) => {
   return `
@@ -366,6 +383,7 @@ router.post("/enquiries", async (req, res) => {
             email,
             mobile,
             type,
+            message,
             team_size,
             status,
             enquiry_date,
@@ -395,6 +413,10 @@ router.post("/enquiries", async (req, res) => {
         // same as the refreshment-bookings route.
         const normalizedTeamSize = parseTeamSize(team_size);
 
+        // Only persist `message` for home-contact / contact types.
+        // Event bookings store `null` even if client sends a message.
+        const finalMessage = normalizeMessage(type, message);
+
         const sql = `
             INSERT INTO enquiries
             (
@@ -402,6 +424,7 @@ router.post("/enquiries", async (req, res) => {
                 email,
                 mobile,
                 type,
+                message,
                 team_size,
                 status,
                 enquiry_date,
@@ -411,7 +434,7 @@ router.post("/enquiries", async (req, res) => {
                 required_date,
                 program_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const values = [
@@ -419,6 +442,7 @@ router.post("/enquiries", async (req, res) => {
             email,
             mobile,
             type,
+            finalMessage,
             normalizedTeamSize,
             enquiryStatus,
             enquiryDate,
@@ -437,6 +461,7 @@ router.post("/enquiries", async (req, res) => {
             email,
             mobile,
             type,
+            message: finalMessage,
             team_size: normalizedTeamSize,
             status: enquiryStatus,
             enquiry_date: enquiryDate,
@@ -464,17 +489,12 @@ router.post("/enquiries", async (req, res) => {
     }
 });
 
-
-
-
 // ============================================================
 // GET ALL ENQUIRIES
 // GET /api/enquiries
 // ============================================================
-
 router.get("/enquiries", async (req, res) => {
     try {
-
         const sql = `
             SELECT
                 id,
@@ -482,6 +502,7 @@ router.get("/enquiries", async (req, res) => {
                 email,
                 mobile,
                 type,
+                message,
                 team_size,
                 status,
                 enquiry_date,
@@ -510,15 +531,12 @@ router.get("/enquiries", async (req, res) => {
     }
 });
 
-
 // ============================================================
 // GET SINGLE ENQUIRY
 // GET /api/enquiries/:id
 // ============================================================
-
 router.get("/enquiries/:id", async (req, res) => {
     try {
-
         const { id } = req.params;
 
         const sql = `
@@ -528,6 +546,7 @@ router.get("/enquiries/:id", async (req, res) => {
                 email,
                 mobile,
                 type,
+                message,
                 team_size,
                 status,
                 enquiry_date,
@@ -562,15 +581,12 @@ router.get("/enquiries/:id", async (req, res) => {
     }
 });
 
-
 // ============================================================
 // UPDATE ENQUIRY
 // PUT /api/enquiries/:id
 // ============================================================
-
 router.put("/enquiries/:id", async (req, res) => {
     try {
-
         const { id } = req.params;
 
         const {
@@ -578,6 +594,7 @@ router.put("/enquiries/:id", async (req, res) => {
             email,
             mobile,
             type,
+            message,
             team_size,
             status,
             enquiry_date
@@ -599,6 +616,7 @@ router.put("/enquiries/:id", async (req, res) => {
         // FIX: same normalization applied here so edits made through
         // the admin panel can't reintroduce a range string either.
         const normalizedTeamSize = parseTeamSize(team_size);
+        const finalMessage = normalizeMessage(type, message);
 
         const sql = `
             UPDATE enquiries
@@ -607,6 +625,7 @@ router.put("/enquiries/:id", async (req, res) => {
                 email = ?,
                 mobile = ?,
                 type = ?,
+                message = ?,
                 team_size = ?,
                 status = ?,
                 enquiry_date = ?
@@ -618,6 +637,7 @@ router.put("/enquiries/:id", async (req, res) => {
             email,
             mobile,
             type,
+            finalMessage,
             normalizedTeamSize,
             status || "New",
             enquiry_date,
@@ -642,15 +662,12 @@ router.put("/enquiries/:id", async (req, res) => {
     }
 });
 
-
 // ============================================================
 // DELETE ENQUIRY
 // DELETE /api/enquiries/:id
 // ============================================================
-
 router.delete("/enquiries/:id", async (req, res) => {
     try {
-
         const { id } = req.params;
 
         // Check if enquiry exists
@@ -686,6 +703,5 @@ router.delete("/enquiries/:id", async (req, res) => {
         });
     }
 });
-
 
 module.exports = router;
