@@ -597,6 +597,7 @@ router.get("/programs/stats", async (req, res) => {
 });
 
 // GET API endpoint to combine services and programs
+// GET API endpoint to combine services and programs
 router.get('/services-with-programs', async (req, res) => {
     try {
         const query = `
@@ -604,9 +605,11 @@ router.get('/services-with-programs', async (req, res) => {
                 s.id AS service_id,
                 s.service_for,
                 s.name AS service_name,
+                s.status AS service_status,
                 p.*
             FROM services s
-            LEFT JOIN programs p ON s.id = p.service_id
+            LEFT JOIN programs p ON s.id = p.service_id AND p.status = 1
+            WHERE s.status = 1
             ORDER BY s.id, p.id
         `;
         
@@ -623,6 +626,7 @@ router.get('/services-with-programs', async (req, res) => {
                     id: row.service_id,
                     service_for: row.service_for,
                     name: row.service_name,
+                    status: row.service_status,
                     programs: []
                 };
                 acc.push(service);
@@ -630,7 +634,7 @@ router.get('/services-with-programs', async (req, res) => {
             
             // Add program if it exists (not null)
             if (row.id) { // program id exists
-                const { service_id, service_for, service_name, ...programData } = row;
+                const { service_id, service_for, service_name, service_status, ...programData } = row;
                 service.programs.push(programData);
             }
             
@@ -651,5 +655,6 @@ router.get('/services-with-programs', async (req, res) => {
         });
     }
 });
+
 
 module.exports = router;
